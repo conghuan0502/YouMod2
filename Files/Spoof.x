@@ -1,41 +1,44 @@
 #import "Headers.h"
+#import <objc/message.h>
 
-%hook MLMediaDataLoader
-
-- (id)initWithDataLoader:(id)dataLoader
-                 config:(id)config
-     firstRequestNumber:(long long)firstRequestNumber
-                useUMP:(BOOL)useUMP
-formatPacingBitrateCap:(double)bitrateCap
-networkRequestObserver:(id)networkObserver
-  hostFallbackObserver:(id)fallbackObserver {
-    
-    if (IS_ENABLED(SpoofWebSafari)) {
-        YouModLogInfo([NSString stringWithFormat:
-            @"MLMediaDataLoader init: useUMP was %d → forcing NO", 
-            useUMP]);
-        return %orig(dataLoader, config, firstRequestNumber,
-                     NO, bitrateCap, networkObserver, fallbackObserver);
+static void SpoofSwizzleMethod(Class cls, SEL sel, id block) {
+    Method m = class_getInstanceMethod(cls, sel);
+    if (!m) {
+        id dummy = ((id(*)(id, SEL))objc_msgSend)((id)cls, sel_registerName("alloc"));
+        dummy = ((id(*)(id, SEL))objc_msgSend)(dummy, sel_registerName("init"));
+        if ([dummy respondsToSelector:sel]) {
+            ((id(*)(id, SEL))objc_msgSend)(dummy, sel);
+            m = class_getInstanceMethod(cls, sel);
+        }
     }
-    return %orig;
+    if (!m) return;
+    IMP newImp = imp_implementationWithBlock(block);
+    method_setImplementation(m, newImp);
 }
 
-// Log để debug xem có được gọi không
-- (void)task:(id)task didCompleteWithError:(id)error {
-    if (error && IS_ENABLED(DebugMode)) {
-        YouModLogError([NSString stringWithFormat:
-            @"MLMediaDataLoader error: %@", error]);
-    }
-    %orig;
-}
+%ctor {
+    %init;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        Class cls = NSClassFromString(@"YTIClientInfo");
+        if (!cls) {
+            YouModLogWarn(@"Spoof: YTIClientInfo not found");
+            return;
+        }
 
-- (BOOL)shouldFallbackFromPrimaryURL:(id)primary 
-                        toFallbackURL:(id)fallback {
-    if (IS_ENABLED(SpoofWebSafari)) {
-        YouModLogInfo(@"MLMediaDataLoader: forcing fallback YES");
-        return YES;
-    }
-    return %orig;
-}
+        SpoofSwizzleMethod(cls, @selector(clientVersion), ^NSString*(id _self) {
+            if (IS_ENABLED(SpoofClientVersion)) {
+                return @"21.20.4";
+            }
+            return ((NSString*(*)(id, SEL))objc_msgSend)(_self, @selector(clientVersion));
+        });
 
-%end
+        SpoofSwizzleMethod(cls, @selector(clientName), ^NSString*(id _self) {
+            if (IS_ENABLED(SpoofWebSafari)) {
+                return @"WEB_SAFARI";
+            }
+            return ((NSString*(*)(id, SEL))objc_msgSend)(_self, @selector(clientName));
+        });
+
+        YouModLogInfo(@"Spoof: YTIClientInfo hooks applied");
+    });
+}
