@@ -1,7 +1,15 @@
 #import "Headers.h"
 
-// Dùng flag tĩnh để tránh gọi NSUserDefaults trong hot path
 static BOOL _spoofEnabled = NO;
+static BOOL _spoofCached = NO;
+
+static BOOL getSpoofEnabled() {
+    if (!_spoofCached) {
+        _spoofEnabled = IS_ENABLED(SpoofWebSafari);
+        _spoofCached = YES;
+    }
+    return _spoofEnabled;
+}
 
 %hook MLMediaDataLoader
 
@@ -13,15 +21,18 @@ formatPacingBitrateCap:(double)bitrateCap
 networkRequestObserver:(id)networkObserver
   hostFallbackObserver:(id)fallbackObserver {
 
-    // Đọc preference 1 lần, cache lại
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        _spoofEnabled = IS_ENABLED(SpoofWebSafari);
-    });
-
-    if (_spoofEnabled && useUMP) {
+    if (getSpoofEnabled() && useUMP) {
+        YouModLogInfo(@"MLMediaDataLoader: useUMP forced NO");
         return %orig(dataLoader, config, firstRequestNumber,
                      NO, bitrateCap, networkObserver, fallbackObserver);
+    }
+    return %orig;
+}
+
+- (BOOL)shouldFallbackFromPrimaryURL:(id)primary
+                       toFallbackURL:(id)fallback {
+    if (getSpoofEnabled()) {
+        return YES;
     }
     return %orig;
 }
@@ -30,17 +41,14 @@ networkRequestObserver:(id)networkObserver
 
 %ctor {
     %init;
-    // Reset cache khi preference thay đổi
-    CFNotificationCenterAddObserver(
-        CFNotificationCenterGetDarwinNotifyCenter(),
-        NULL,
-        (CFNotificationCallback)^(CFNotificationCenterRef c, void *o, 
-                                   CFStringRef n, const void *obj, 
-                                   CFDictionaryRef u) {
-            _spoofEnabled = IS_ENABLED(SpoofWebSafari);
-        },
-        CFSTR("com.apple.preferences.changed"),
-        NULL,
-        CFNotificationSuspensionBehaviorDeliverImmediately
-    );
+    // Reset cache mỗi khi app foreground
+    // để đọc lại preference mới nhất
+    [[NSNotificationCenter defaultCenter]
+        addObserverForName:UIApplicationWillEnterForegroundNotification
+        object:nil
+        queue:nil
+        usingBlock:^(NSNotification *note) {
+            _spoofCached = NO;
+        }
+    ];
 }
