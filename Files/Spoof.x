@@ -3,7 +3,6 @@
 
 static void SpoofSwizzleMethod(Class cls, SEL sel, id block, NSString *logName) {
     Method m = class_getInstanceMethod(cls, sel);
-    IMP orig = NULL;
 
     if (!m) {
         id dummy = ((id(*)(id, SEL))objc_msgSend)((id)cls, sel_registerName("alloc"));
@@ -17,7 +16,6 @@ static void SpoofSwizzleMethod(Class cls, SEL sel, id block, NSString *logName) 
         return;
     }
 
-    orig = method_getImplementation(m);
     IMP newImp = imp_implementationWithBlock(block);
     method_setImplementation(m, newImp);
     YouModLogInfo([NSString stringWithFormat:@"Spoof: %@ spoofed", logName]);
