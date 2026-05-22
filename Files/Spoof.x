@@ -38,13 +38,28 @@ static BOOL getSpoofEnabled() {
 playerItemEventCenter:(id)eventCenter
        playerConfig:(id)config
       QOEController:(id)qoe {
-    YouModLogInfo(@"MLPlatypusABRLoader init — SABR loader created");
-    return %orig;
+    YouModLogInfo(@"MLPlatypusABRLoader: intercepted init");
+    id result = %orig;
+    if (result && getSpoofEnabled()) {
+        // Set _disableSABR ivar trực tiếp
+        @try {
+            [result setValue:@YES forKey:@"_disableSABR"];
+            YouModLogInfo(@"MLPlatypusABRLoader: _disableSABR = YES");
+        } @catch (NSException *e) {
+            YouModLogError([NSString stringWithFormat:
+                @"MLPlatypusABRLoader setValue error: %@", e.reason]);
+        }
+    }
+    return result;
+}
+
+- (void)onQoeError:(id)fallbackConfig {
+    YouModLogWarn(@"MLPlatypusABRLoader: QoE error triggered");
+    %orig;
 }
 
 %end
 
-// ✅ Chỉ giữ hook MLMediaDataLoader để force useUMP = NO
 %hook MLMediaDataLoader
 
 - (id)initWithDataLoader:(id)dataLoader

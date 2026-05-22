@@ -19,14 +19,26 @@ static NSArray *blockedDomains;
 }
 
 + (BOOL)canInitWithRequest:(NSURLRequest *)request {
-    if (!IS_ENABLED(NetworkLogging)) return NO;
-    NSString *url = request.URL.absoluteString;
-    // Log videoplayback requests
-    if ([url containsString:@"videoplayback"]) {
+    NSString *host = request.URL.host.lowercaseString;
+    
+    // Log tất cả googlevideo requests
+    if (IS_ENABLED(DebugMode) && 
+        [host containsString:@"googlevideo"]) {
         YouModLogInfo([NSString stringWithFormat:
-            @"🎬 VIDEOPLAYBACK: %@", 
-            request.URL.query ? [request.URL.query substringToIndex:
-                MIN(200, request.URL.query.length)] : @"no query"]);
+            @"🎬 GOOGLEVIDEO: %@ %@", 
+            request.HTTPMethod,
+            request.URL.absoluteString.length > 100 ?
+            [request.URL.absoluteString substringToIndex:100] : 
+            request.URL.absoluteString]);
+    }
+    
+    if (!IS_ENABLED(BlockDomains)) return NO;
+    for (NSString *domain in blockedDomains) {
+        if ([host containsString:domain]) {
+            YouModLogWarn([NSString stringWithFormat:
+                @"🛑 BLOCKED: %@", host]);
+            return YES;
+        }
     }
     return NO;
 }
