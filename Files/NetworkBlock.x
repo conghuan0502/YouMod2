@@ -19,15 +19,14 @@ static NSArray *blockedDomains;
 }
 
 + (BOOL)canInitWithRequest:(NSURLRequest *)request {
-    if (!IS_ENABLED(BlockDomains)) return NO;
-    NSString *host = request.URL.host.lowercaseString;
-    if (host.length == 0) return NO;
-    for (NSString *domain in blockedDomains) {
-        if ([host containsString:domain]) {
-            YouModLogWarn([NSString stringWithFormat:
-                @"🛑 BLOCKED: %@", host]);
-            return YES;
-        }
+    if (!IS_ENABLED(NetworkLogging)) return NO;
+    NSString *url = request.URL.absoluteString;
+    // Log videoplayback requests
+    if ([url containsString:@"videoplayback"]) {
+        YouModLogInfo([NSString stringWithFormat:
+            @"🎬 VIDEOPLAYBACK: %@", 
+            request.URL.query ? [request.URL.query substringToIndex:
+                MIN(200, request.URL.query.length)] : @"no query"]);
     }
     return NO;
 }

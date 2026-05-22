@@ -11,6 +11,32 @@ static BOOL getSpoofEnabled() {
     return _spoofEnabled;
 }
 
+// Hook để xóa xpc parameter khỏi stream URL
+%hook YTIFormatStream
+
+- (NSString *)URL {
+    NSString *url = %orig;
+    if (IS_ENABLED(SpoofWebSafari) && url) {
+        // Xóa xpc parameter → disable SABR
+        NSURLComponents *components = [NSURLComponents 
+            componentsWithString:url];
+        NSMutableArray *queryItems = [components.queryItems mutableCopy];
+        [queryItems removeObjectsAtIndexes:
+            [queryItems indexesOfObjectsPassingTest:
+                ^BOOL(NSURLQueryItem *item, NSUInteger idx, BOOL *stop) {
+                    return [item.name isEqualToString:@"xpc"];
+                }]];
+        components.queryItems = queryItems;
+        NSString *newURL = components.URL.absoluteString;
+        YouModLogInfo([NSString stringWithFormat:
+            @"YTIFormatStream: removed xpc from URL"]);
+        return newURL;
+    }
+    return url;
+}
+
+%end
+
 %hook MLMediaDataLoader
 
 - (id)initWithDataLoader:(id)dataLoader
