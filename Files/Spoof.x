@@ -1,7 +1,7 @@
 #import "Headers.h"
 
-static BOOL _spoofEnabled = NO;
 static BOOL _spoofCached = NO;
+static BOOL _spoofEnabled = NO;
 
 static BOOL getSpoofEnabled() {
     if (!_spoofCached) {
@@ -11,32 +11,40 @@ static BOOL getSpoofEnabled() {
     return _spoofEnabled;
 }
 
-// Hook để xóa xpc parameter khỏi stream URL
-%hook YTIFormatStream
+// Thêm vào Spoof.x
 
-- (NSString *)URL {
-    NSString *url = %orig;
-    if (IS_ENABLED(SpoofWebSafari) && url) {
-        // Xóa xpc parameter → disable SABR
-        NSURLComponents *components = [NSURLComponents 
-            componentsWithString:url];
-        NSMutableArray *queryItems = [components.queryItems mutableCopy];
-        [queryItems removeObjectsAtIndexes:
-            [queryItems indexesOfObjectsPassingTest:
-                ^BOOL(NSURLQueryItem *item, NSUInteger idx, BOOL *stop) {
-                    return [item.name isEqualToString:@"xpc"];
-                }]];
-        components.queryItems = queryItems;
-        NSString *newURL = components.URL.absoluteString;
-        YouModLogInfo([NSString stringWithFormat:
-            @"YTIFormatStream: removed xpc from URL"]);
-        return newURL;
+%hook YTISabrClientConfig
+
+- (BOOL)disableSABR {
+    if (getSpoofEnabled()) {
+        YouModLogInfo(@"YTISabrClientConfig: disableSABR → YES");
+        return YES;
     }
-    return url;
+    return %orig;
+}
+
+- (BOOL)isSabr {
+    if (getSpoofEnabled()) {
+        return NO;
+    }
+    return %orig;
 }
 
 %end
 
+%hook MLPlatypusABRLoader
+
+- (id)initWithQueue:(id)queue
+playerItemEventCenter:(id)eventCenter
+       playerConfig:(id)config
+      QOEController:(id)qoe {
+    YouModLogInfo(@"MLPlatypusABRLoader init — SABR loader created");
+    return %orig;
+}
+
+%end
+
+// ✅ Chỉ giữ hook MLMediaDataLoader để force useUMP = NO
 %hook MLMediaDataLoader
 
 - (id)initWithDataLoader:(id)dataLoader
@@ -58,8 +66,27 @@ networkRequestObserver:(id)networkObserver
 - (BOOL)shouldFallbackFromPrimaryURL:(id)primary
                        toFallbackURL:(id)fallback {
     if (getSpoofEnabled()) {
+        YouModLogInfo(@"MLMediaDataLoader: forcing fallback YES");
         return YES;
     }
+    return %orig;
+}
+
+- (void)task:(id)task didCompleteWithError:(id)error {
+    if (error && IS_ENABLED(DebugMode)) {
+        YouModLogError([NSString stringWithFormat:
+            @"MLMediaDataLoader error: %@", error]);
+    }
+    %orig;
+}
+
+%end
+
+// ✅ Hook HAM layer để tìm SABR class
+%hook HAMDataLoader
+
+- (id)init {
+    YouModLogInfo(@"HAMDataLoader init");
     return %orig;
 }
 
@@ -67,8 +94,6 @@ networkRequestObserver:(id)networkObserver
 
 %ctor {
     %init;
-    // Reset cache mỗi khi app foreground
-    // để đọc lại preference mới nhất
     [[NSNotificationCenter defaultCenter]
         addObserverForName:UIApplicationWillEnterForegroundNotification
         object:nil
