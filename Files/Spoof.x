@@ -11,56 +11,7 @@ static BOOL getSpoofEnabled() {
     return _spoofEnabled;
 }
 
-// Thêm vào Spoof.x
-
-%hook YTISabrClientConfig
-
-- (BOOL)disableSABR {
-    if (getSpoofEnabled()) {
-        YouModLogInfo(@"YTISabrClientConfig: disableSABR → YES");
-        return YES;
-    }
-    return %orig;
-}
-
-- (BOOL)isSabr {
-    if (getSpoofEnabled()) {
-        return NO;
-    }
-    return %orig;
-}
-
-%end
-
-%hook MLPlatypusABRLoader
-
-// Hook method đơn giản hơn thay vì init phức tạp
-- (void)didReceiveSabrSeek:(id)seek {
-    YouModLogInfo(@"MLPlatypusABRLoader: didReceiveSabrSeek called");
-    %orig;
-}
-
-// Hook setDelegate thay vì init — được gọi sau init
-- (void)setDelegate:(id)delegate {
-    %orig;
-    if (getSpoofEnabled()) {
-        @try {
-            [self setValue:@YES forKey:@"_disableSABR"];
-            YouModLogInfo(@"MLPlatypusABRLoader: _disableSABR=YES via setDelegate");
-        } @catch (NSException *e) {
-            YouModLogError([NSString stringWithFormat:
-                @"setValue error: %@", e.reason]);
-        }
-    }
-}
-
-- (void)onQoeError:(id)config {
-    YouModLogWarn(@"MLPlatypusABRLoader: QoE error triggered");
-    %orig;
-}
-
-%end
-
+// ✅ Hook MLMediaDataLoader — force useUMP = NO
 %hook MLMediaDataLoader
 
 - (id)initWithDataLoader:(id)dataLoader
@@ -98,11 +49,44 @@ networkRequestObserver:(id)networkObserver
 
 %end
 
-// ✅ Hook HAM layer để tìm SABR class
-%hook HAMDataLoader
+// ✅ Hook MLPlatypusABRLoader — disable SABR
+%hook MLPlatypusABRLoader
 
-- (id)init {
-    YouModLogInfo(@"HAMDataLoader init");
+- (void)setDelegate:(id)delegate {
+    %orig;
+    if (getSpoofEnabled()) {
+        @try {
+            [(NSObject *)self setValue:@YES forKey:@"_disableSABR"];
+            YouModLogInfo(@"MLPlatypusABRLoader: _disableSABR=YES");
+        } @catch (NSException *e) {
+            YouModLogError([NSString stringWithFormat:
+                @"MLPlatypusABRLoader setValue error: %@", e.reason]);
+        }
+    }
+}
+
+- (void)onQoeError:(id)config {
+    YouModLogWarn(@"MLPlatypusABRLoader: QoE error triggered");
+    %orig;
+}
+
+%end
+
+// ✅ Hook YTISabrClientConfig — disable SABR từ config
+%hook YTISabrClientConfig
+
+- (BOOL)isSabr {
+    if (getSpoofEnabled()) {
+        return NO;
+    }
+    return %orig;
+}
+
+- (BOOL)disableSABR {
+    if (getSpoofEnabled()) {
+        YouModLogInfo(@"YTISabrClientConfig: disableSABR → YES");
+        return YES;
+    }
     return %orig;
 }
 
