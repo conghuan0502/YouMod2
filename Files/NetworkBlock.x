@@ -10,6 +10,7 @@ static NSArray *blockedDomains;
 + (void)initialize {
     if (self == [_YouModBlockedURLProtocol class]) {
         blockedDomains = @[
+            @"iosantiabuse.googleapis.com", 
             @"play.googleapis.com",
             @"clients3.googleapis.com",
             @"s.youtube.com"
@@ -23,7 +24,8 @@ static NSArray *blockedDomains;
     if (host.length == 0) return NO;
     for (NSString *domain in blockedDomains) {
         if ([host containsString:domain]) {
-            NSLog(@"[YouMod] [WARN] 🛑 BLOCKED %@", request.URL.absoluteString);
+            YouModLogWarn([NSString stringWithFormat:
+                @"🛑 BLOCKED: %@", host]);
             return YES;
         }
     }
