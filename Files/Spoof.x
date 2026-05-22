@@ -1,44 +1,39 @@
 #import "Headers.h"
 
-// Dùng %hook của Logos thay vì manual swizzle
-// An toàn hơn, không risk infinite loop
+%hook MLMediaDataLoader
 
-%hook YTIClientInfo
-
-- (NSString *)clientName {
+- (id)initWithDataLoader:(id)dataLoader
+                 config:(id)config
+     firstRequestNumber:(long long)firstRequestNumber
+                useUMP:(BOOL)useUMP
+formatPacingBitrateCap:(double)bitrateCap
+networkRequestObserver:(id)networkObserver
+  hostFallbackObserver:(id)fallbackObserver {
+    
     if (IS_ENABLED(SpoofWebSafari)) {
-        YouModLogInfo(@"Spoof: clientName → WEB_SAFARI");
-        return @"WEB_SAFARI";
+        YouModLogInfo([NSString stringWithFormat:
+            @"MLMediaDataLoader init: useUMP was %d → forcing NO", 
+            useUMP]);
+        return %orig(dataLoader, config, firstRequestNumber,
+                     NO, bitrateCap, networkObserver, fallbackObserver);
     }
     return %orig;
 }
 
-- (NSString *)clientVersion {
-    if (IS_ENABLED(SpoofClientVersion)) {
-        YouModLogInfo(@"Spoof: clientVersion → 21.20.4");
-        return @"21.20.4";
+// Log để debug xem có được gọi không
+- (void)task:(id)task didCompleteWithError:(id)error {
+    if (error && IS_ENABLED(DebugMode)) {
+        YouModLogError([NSString stringWithFormat:
+            @"MLMediaDataLoader error: %@", error]);
     }
-    return %orig;
+    %orig;
 }
 
-// Cần spoof thêm các field này để server không detect mismatch
-- (NSString *)osName {
+- (BOOL)shouldFallbackFromPrimaryURL:(id)primary 
+                        toFallbackURL:(id)fallback {
     if (IS_ENABLED(SpoofWebSafari)) {
-        return @"Macintosh";
-    }
-    return %orig;
-}
-
-- (NSString *)platform {
-    if (IS_ENABLED(SpoofWebSafari)) {
-        return @"WEB";
-    }
-    return %orig;
-}
-
-- (int32_t)clientNameEnum {
-    if (IS_ENABLED(SpoofWebSafari)) {
-        return 7; // WEB_SAFARI = 7 trong Innertube enum
+        YouModLogInfo(@"MLMediaDataLoader: forcing fallback YES");
+        return YES;
     }
     return %orig;
 }
