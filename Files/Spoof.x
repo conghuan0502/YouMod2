@@ -34,42 +34,28 @@ static BOOL getSpoofEnabled() {
 
 %hook MLPlatypusABRLoader
 
-- (id)initWithQueue:(id)queue
-playerItemEventCenter:(id)eventCenter
-       playerConfig:(id)config
-      QOEController:(id)qoe
-       isLiveSource:(BOOL)isLive
-      metadataRelay:(id)metadataRelay
-           delegate:(id)delegate
-      latencyLogger:(id)latencyLogger
-           periodID:(id)periodID
- firstRequestNumber:(long long)firstRequestNumber
-              cache:(id)cache
-              video:(id)video
-    onesieVideoData:(id)onesieVideoData
-mediaFetchController:(id)mediaFetchController
-playbackController:(id)playbackController
-bufferManagerImpl:(id)bufferManager
-SSDAIDataProvider:(id)ssdai
-  initialSeekTime:(double)seekTime
-initialSeekRequired:(BOOL)seekRequired
-audioFormatConstraint:(id)audioConstraint {
-
-    id result = %orig;
-    if (result && getSpoofEnabled()) {
-        @try {
-            [result setValue:@YES forKey:@"_disableSABR"];
-            YouModLogInfo(@"MLPlatypusABRLoader: _disableSABR forced YES");
-        } @catch (NSException *e) {
-            YouModLogError([NSString stringWithFormat:
-                @"MLPlatypusABRLoader setValue error: %@", e.reason]);
-        }
-    }
-    return result;
+// Hook method đơn giản hơn thay vì init phức tạp
+- (void)didReceiveSabrSeek:(id)seek {
+    YouModLogInfo(@"MLPlatypusABRLoader: didReceiveSabrSeek called");
+    %orig;
 }
 
-- (void)onQoeError:(id)fallbackConfig {
-    YouModLogWarn(@"MLPlatypusABRLoader: QoE error");
+// Hook setDelegate thay vì init — được gọi sau init
+- (void)setDelegate:(id)delegate {
+    %orig;
+    if (getSpoofEnabled()) {
+        @try {
+            [self setValue:@YES forKey:@"_disableSABR"];
+            YouModLogInfo(@"MLPlatypusABRLoader: _disableSABR=YES via setDelegate");
+        } @catch (NSException *e) {
+            YouModLogError([NSString stringWithFormat:
+                @"setValue error: %@", e.reason]);
+        }
+    }
+}
+
+- (void)onQoeError:(id)config {
+    YouModLogWarn(@"MLPlatypusABRLoader: QoE error triggered");
     %orig;
 }
 
