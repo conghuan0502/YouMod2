@@ -37,14 +37,29 @@ static BOOL getSpoofEnabled() {
 - (id)initWithQueue:(id)queue
 playerItemEventCenter:(id)eventCenter
        playerConfig:(id)config
-      QOEController:(id)qoe {
-    YouModLogInfo(@"MLPlatypusABRLoader: intercepted init");
+      QOEController:(id)qoe
+       isLiveSource:(BOOL)isLive
+      metadataRelay:(id)metadataRelay
+           delegate:(id)delegate
+      latencyLogger:(id)latencyLogger
+           periodID:(id)periodID
+ firstRequestNumber:(long long)firstRequestNumber
+              cache:(id)cache
+              video:(id)video
+    onesieVideoData:(id)onesieVideoData
+mediaFetchController:(id)mediaFetchController
+playbackController:(id)playbackController
+bufferManagerImpl:(id)bufferManager
+SSDAIDataProvider:(id)ssdai
+  initialSeekTime:(double)seekTime
+initialSeekRequired:(BOOL)seekRequired
+audioFormatConstraint:(id)audioConstraint {
+
     id result = %orig;
     if (result && getSpoofEnabled()) {
-        // Set _disableSABR ivar trực tiếp
         @try {
             [result setValue:@YES forKey:@"_disableSABR"];
-            YouModLogInfo(@"MLPlatypusABRLoader: _disableSABR = YES");
+            YouModLogInfo(@"MLPlatypusABRLoader: _disableSABR forced YES");
         } @catch (NSException *e) {
             YouModLogError([NSString stringWithFormat:
                 @"MLPlatypusABRLoader setValue error: %@", e.reason]);
@@ -54,7 +69,7 @@ playerItemEventCenter:(id)eventCenter
 }
 
 - (void)onQoeError:(id)fallbackConfig {
-    YouModLogWarn(@"MLPlatypusABRLoader: QoE error triggered");
+    YouModLogWarn(@"MLPlatypusABRLoader: QoE error");
     %orig;
 }
 
