@@ -216,6 +216,22 @@ static void YouModInitRetryHooks(void) {
         dispatch_async(dispatch_get_main_queue(), ^{
             YouModDiagnostic();
             YouModInitRetryHooks();
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC),
+                dispatch_get_main_queue(), ^{
+                NSArray *targets = @[
+                    @"YTHeartbeatController",
+                    @"YTIOSGuardSnapshotControllerImpl",
+                    @"YTIHeartbeatResponse",
+                    @"YTAttestationController",
+                    @"MLAttestationController",
+                    @"HAMAttestationController",
+                ];
+                for (NSString *name in targets) {
+                    Class cls = NSClassFromString(name);
+                    YouModLogInfo([NSString stringWithFormat:
+                        @"Class %@: %@", name, cls ? @"EXISTS" : @"MISSING"]);
+                }
+            });
         });
     }
 }
