@@ -154,10 +154,25 @@ networkRequestObserver:(id)networkObserver
                                               retry:(BOOL)retry
                                   completionHandler:(id)handler {
     if (getSpoofEnabled()) {
-        YouModLogWarn(@"YTIOSGuard: suppressed constructSnapshot+retry");
-        return; // Không gọi handler → không crash
+        YouModLogWarn(@"YTIOSGuard: calling orig without block");
+        // Gọi orig nhưng không block
+        // Để player có snapshot dù invalid
+        %orig;
+        return;
     }
     %orig;
+}
+
+- (id)snapshotWithIOSGuardData:(id)data
+                       videoID:(id)videoID
+                    identityID:(id)identityID {
+    id result = %orig;
+    if (getSpoofEnabled()) {
+        YouModLogWarn([NSString stringWithFormat:
+            @"YTIOSGuard: snapshotWithIOSGuardData called, result=%@",
+            result ? @"non-nil" : @"nil"]);
+    }
+    return result;
 }
 
 - (id)attestationChallengeRequestWithCPN:(id)cpn
