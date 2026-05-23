@@ -92,6 +92,32 @@ networkRequestObserver:(id)networkObserver
 
 %end
 
+%hook YTIHeartbeatResponse
+
+- (BOOL)hasHeartbeatToken { 
+    return IS_ENABLED(SpoofWebSafari) ? YES : %orig; 
+}
+
+- (NSString *)heartbeatToken {
+    return IS_ENABLED(SpoofWebSafari) ? @"" : %orig;
+}
+
+%end
+
+// Và hook YTHeartbeatController
+%hook YTHeartbeatController
+
+- (void)heartbeatDidFail:(id)error {
+    if (IS_ENABLED(SpoofWebSafari)) {
+        YouModLogWarn(@"YTHeartbeatController: suppressed fail");
+        return; // Không báo lỗi cho player
+    }
+    %orig;
+}
+
+%end
+
+
 %ctor {
     %init;
     [[NSNotificationCenter defaultCenter]
