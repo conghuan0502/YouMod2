@@ -130,7 +130,7 @@ networkRequestObserver:(id)networkObserver
                          completionHandler:(id)handler {
     if (getSpoofEnabled()) {
         YouModLogWarn(@"YTIOSGuard: suppressed challenge response");
-        return;
+        return; // Không gọi handler
     }
     %orig;
 }
@@ -142,11 +142,7 @@ networkRequestObserver:(id)networkObserver
                                   completionHandler:(id)handler {
     if (getSpoofEnabled()) {
         YouModLogWarn(@"YTIOSGuard: suppressed constructSnapshot");
-        if (handler) {
-            void (^completionBlock)(id) = handler;
-            completionBlock(nil);
-        }
-        return;
+        return; // Không gọi handler → không crash
     }
     %orig;
 }
@@ -159,11 +155,7 @@ networkRequestObserver:(id)networkObserver
                                   completionHandler:(id)handler {
     if (getSpoofEnabled()) {
         YouModLogWarn(@"YTIOSGuard: suppressed constructSnapshot+retry");
-        if (handler) {
-            void (^completionBlock)(id) = handler;
-            completionBlock(nil);
-        }
-        return;
+        return; // Không gọi handler → không crash
     }
     %orig;
 }
