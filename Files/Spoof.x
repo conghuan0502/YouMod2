@@ -129,11 +129,52 @@ networkRequestObserver:(id)networkObserver
                                 identityID:(id)identityID
                          completionHandler:(id)handler {
     if (getSpoofEnabled()) {
-        YouModLogWarn(@"YTIOSGuard: suppressed attestation challenge");
-        // Không gọi %orig → block challenge response
+        YouModLogWarn(@"YTIOSGuard: suppressed challenge response");
         return;
     }
     %orig;
+}
+
+- (void)constructPlaybackAttestationSnapshotWithCPN:(id)cpn
+                                         identityID:(id)identityID
+                                        visitorData:(id)visitorData
+                                            videoID:(id)videoID
+                                  completionHandler:(id)handler {
+    if (getSpoofEnabled()) {
+        YouModLogWarn(@"YTIOSGuard: suppressed constructSnapshot");
+        if (handler) {
+            void (^completionBlock)(id) = handler;
+            completionBlock(nil);
+        }
+        return;
+    }
+    %orig;
+}
+
+- (void)constructPlaybackAttestationSnapshotWithCPN:(id)cpn
+                                         identityID:(id)identityID
+                                        visitorData:(id)visitorData
+                                            videoID:(id)videoID
+                                              retry:(BOOL)retry
+                                  completionHandler:(id)handler {
+    if (getSpoofEnabled()) {
+        YouModLogWarn(@"YTIOSGuard: suppressed constructSnapshot+retry");
+        if (handler) {
+            void (^completionBlock)(id) = handler;
+            completionBlock(nil);
+        }
+        return;
+    }
+    %orig;
+}
+
+- (id)attestationChallengeRequestWithCPN:(id)cpn
+                                 videoID:(id)videoID {
+    if (getSpoofEnabled()) {
+        YouModLogWarn(@"YTIOSGuard: suppressed attestation request");
+        return nil;
+    }
+    return %orig;
 }
 
 %end
