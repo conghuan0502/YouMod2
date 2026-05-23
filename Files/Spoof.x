@@ -94,12 +94,16 @@ networkRequestObserver:(id)networkObserver
 
 %hook YTIHeartbeatResponse
 
-- (BOOL)hasHeartbeatToken { 
-    return IS_ENABLED(SpoofWebSafari) ? YES : %orig; 
+- (BOOL)hasDrmParams {
+    return getSpoofEnabled() ? NO : %orig;
 }
 
-- (NSString *)heartbeatToken {
-    return IS_ENABLED(SpoofWebSafari) ? @"" : %orig;
+- (BOOL)hasAttestationChallengeParams {
+    if (getSpoofEnabled()) {
+        YouModLogWarn(@"YTIHeartbeatResponse: blocked attestation");
+        return NO;
+    }
+    return %orig;
 }
 
 %end
@@ -117,6 +121,22 @@ networkRequestObserver:(id)networkObserver
 
 %end
 
+%hook YTIOSGuardSnapshotControllerImpl
+
+- (void)handleAttestationChallengeResponse:(id)response
+                                     error:(id)error
+                                   videoID:(id)videoID
+                                identityID:(id)identityID
+                         completionHandler:(id)handler {
+    if (getSpoofEnabled()) {
+        YouModLogWarn(@"YTIOSGuard: suppressed attestation challenge");
+        // Không gọi %orig → block challenge response
+        return;
+    }
+    %orig;
+}
+
+%end
 
 %ctor {
     %init;
