@@ -232,6 +232,20 @@ static void YouModInitRetryHooks(void) {
                         @"Class %@: %@", name, cls ? @"EXISTS" : @"MISSING"]);
                 }
             });
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC),
+                dispatch_get_main_queue(), ^{
+                Class cls = NSClassFromString(@"YTIOSGuardSnapshotControllerImpl");
+                if (cls) {
+                    unsigned int count;
+                    Method *methods = class_copyMethodList(cls, &count);
+                    for (unsigned int i = 0; i < count; i++) {
+                        YouModLogInfo([NSString stringWithFormat:
+                            @"YTIOSGuard method: %@",
+                            NSStringFromSelector(method_getName(methods[i]))]);
+                    }
+                    free(methods);
+                }
+            });
         });
     }
 }
